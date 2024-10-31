@@ -1,7 +1,3 @@
-#parameters
-hot_heat = 2
-cold_heat = 1
-step_size = 1
 
 
 
@@ -38,45 +34,15 @@ step_size = 1
 # cancer_pos = rbind(hot_data, cold_data)
 
 # Actual Data
-library(readxl) #package for reading excel files
-tumor_3_raw = read_excel('Data/6235_3mm X coordinates for cross sections.xlsx', sheet = 1)
+CD4_cells = read.csv('Data/3mm_tumor/CrossSection1/CD4_XPos.csv')
+YFP_cells = read.csv('Data/3mm_tumor/CrossSection1/YFP_XPos.csv')
+RFP_cells = read.csv('Data/3mm_tumor/CrossSection1/RFP_XPos.csv')
 
-##function to split dataset into cancer and CD4 dataframes (removes any rows with multiple markers)
-library(dplyr)
-clean_raw_data <- function(df) {
-  # Clean the data: Trim spaces and convert to lowercase
-  df <- df %>%
-    mutate(
-      `AF647_clean` = trimws(tolower(`AF647?`)),
-      `YFP_clean` = trimws(tolower(`YFP?`)),
-      `RFP_clean` = trimws(tolower(`RFP?`))
-    )
-  
-  # Filter CD4 cells (AF647)
-  CD4_Cells <- df %>%
-    filter( AF647_clean == "af647" & is.na(YFP_clean) ) #keep rows with only AF647
-  
-  # Filter Cancer cells (YFP or RFP)
-  Cancer_Cells <- df %>%
-    filter(
-      (YFP_clean == "yfp" & is.na(RFP_clean) & is.na(AF647_clean) ) #keep rows with only YFP
-      | # or
-      (is.na(YFP_clean) & RFP_clean == "rfp" & is.na(AF647_clean) ) #keep rows with only RFP
-    )
-  
-  return(list(CD4_df = CD4_Cells, Cancer_df = Cancer_Cells))
-}
-
-test = clean_raw_data(tumor_3_raw)
-cancer_test = test$Cancer_df
-cd4_test = test$CD4_df
 
 # Chemokine Gradient Calculation
 
   #k: chemokine decay constant
-k = 0.2
   #d: chemokine diffusion constant
-d = 100  
   #M: heat of cancer cell
   #x: distance from cancer cell to current x position
 calculate_diffusion_1d <- function(k, d, m, x) {
@@ -86,17 +52,42 @@ calculate_diffusion_1d <- function(k, d, m, x) {
          (m / (2 * sqrt(d * k))) * exp(-x * sqrt(k / d)))
 }
 
-chemokine_x_positions = seq(from=left_x, to=right_x, by = step_size)
+step_size = 1 #minimum step size of agents
 
-chemokine_concentration = numeric(length(chemokine_x_positions))
-
-
-for (row in 1:nrow(cancer_pos)) {
-  y <- calculate_diffusion_1d(k = k, d = d, m = cancer_pos[row, "heat"], x = (chemokine_x_positions - cancer_pos[row, "pos_x"]))
-  chemokine_concentration =  chemokine_concentration + y 
+#k: chemokine decay constant
+#d: chemokine diffusion constant
+#r: rfp (cold) heat
+#y: yfp (hot) heat 
+calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
+  left_x = min(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
+  right_x = max(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
+  
+  chemokine_x_positions = seq(from=left_x, to=right_x, by = step_size)
+  
+  chemokine_concentration = numeric(length(chemokine_x_positions))
+  
+  #calculate the chemokine for just the RFP cells
+  for (row in 1:nrow(RFP_cells)) {
+    diffusion_value <- calculate_diffusion_1d(k = k, d = d, m = r, x = (chemokine_x_positions - RFP_cells[row, "pos_x"]))
+    chemokine_concentration =  chemokine_concentration + diffusion_value
+  }
+  
+  # calculate the chemokine concentration for the YFP cells (adds it ontop of RFP)
+  for (row in 1:nrow(YFP_cells)) {
+    diffusion_value <- calculate_diffusion_1d(k = k, d = d, m = y, x = (chemokine_x_positions - YFP_cells[row, "pos_x"]))
+    chemokine_concentration =  chemokine_concentration + diffusion_value
+  }
+  
+  chemokine_gradient = data.frame(x_pos = chemokine_x_positions, concentration = chemokine_concentration)
+  
+  return(chemokine_gradient)
 }
 
-chemokine_gradient = data.frame(x_pos = chemokine_x_positions, concentration = chemokine_concentration)
+
+
+
+
+
 
 
 

@@ -4,34 +4,7 @@
 
 
 
-# # Test data
-# 
-# ## parameters:
-# 
-# hot_size = 25
-# cold_size = 0
-# left_x = 0
-# right_x = 1000
-# 
-# ## very hot data
-# 
-# 
-# hot_data = data.frame(
-#   pos_x = seq(0,1000, length.out = hot_size),
-#   heat = rep(hot_heat,hot_size)
-# )
-# 
-# 
-# ## cold data
-# 
-# 
-# cold_data = data.frame(
-#   pos_x = seq(0,1000, length.out = cold_size),
-#   heat = rep(cold_heat,cold_size)
-# )
-# 
-# ## combine data
-# cancer_pos = rbind(hot_data, cold_data)
+
 
 # Actual Data
 CD4_cells = read.csv('Data/3mm_tumor/CrossSection1/CD4_XPos.csv')
@@ -39,12 +12,12 @@ YFP_cells = read.csv('Data/3mm_tumor/CrossSection1/YFP_XPos.csv')
 RFP_cells = read.csv('Data/3mm_tumor/CrossSection1/RFP_XPos.csv')
 
 
-# Chemokine Gradient Calculation
+# Chemokine Gradient Calculation ----
 
-  #k: chemokine decay constant
-  #d: chemokine diffusion constant
-  #M: heat of cancer cell
-  #x: distance from cancer cell to current x position
+#k: chemokine decay constant
+#d: chemokine diffusion constant
+#M: heat of cancer cell
+#x: distance from cancer cell to current x position
 calculate_diffusion_1d <- function(k, d, m, x) {
   
   ifelse(x < 0,
@@ -83,16 +56,7 @@ calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
   return(chemokine_gradient)
 }
 
-
-
-
-
-
-
-
-
-# Simulation
-
+# T-cell Migration ----
 ## parameters
 stoch = 1
 iterations = 500
@@ -207,7 +171,13 @@ run_sim <- function(agents){
   
 }
 
-#Visualizing the data
+
+
+
+# KL-divergence ----
+
+
+#Visualizing the data ----
 library(ggplot2)
 
 #See concentration and t_cells at specific frame

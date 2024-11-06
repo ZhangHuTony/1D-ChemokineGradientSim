@@ -11,6 +11,10 @@ CD4_cells = read.csv('Data/3mm_tumor/CrossSection1/CD4_XPos.csv')
 YFP_cells = read.csv('Data/3mm_tumor/CrossSection1/YFP_XPos.csv')
 RFP_cells = read.csv('Data/3mm_tumor/CrossSection1/RFP_XPos.csv')
 
+#constants:
+left_x = min(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
+right_x = max(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
+
 
 # Chemokine Gradient Calculation ----
 
@@ -31,9 +35,12 @@ step_size = 1 #minimum step size of agents
 #d: chemokine diffusion constant
 #r: rfp (cold) heat
 #y: yfp (hot) heat 
+
+#outputs: 
+#'gradient': a dataframe with columns 'x_pos' and 'concentration' 
+
 calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
-  left_x = min(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
-  right_x = max(CD4_cells$pos_x, YFP_cells$pos_x, RFP_cells$pos_x, na.rm = TRUE)
+
   
   chemokine_x_positions = seq(from=left_x, to=right_x, by = step_size)
   
@@ -57,15 +64,12 @@ calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
 }
 
 # T-cell Migration ----
-## parameters
-stoch = 1
-iterations = 500
 
 ## functions
 
 
 #function which returns the next movement in which the cell will move
-get_next_step <- function(left_conc, right_conc){
+get_next_step <- function(left_conc, right_conc, stoch){
   
   
   higher_conc_direction = ifelse(right_conc>left_conc, 
@@ -77,13 +81,24 @@ get_next_step <- function(left_conc, right_conc){
   
   rand_num = runif(1)
   
-  #if randomly generated number is less than probablity move in direction of higher concentration else move in opposite direction
+  #if randomly generated number is less than probability move in direction of higher concentration else move in opposite direction
   if(rand_num < prob_move_higher_conc){
     return(step_size * higher_conc_direction) 
   }else{
     return(step_size * (-1 * higher_conc_direction))
   }
   
+}
+
+#if the new x position goes past the boundaries, the cell will reappear randomly back in the tumor.
+get_new_pos <- function(x_pos, delta_x){
+  new_pos = x_pos + delta_x
+  
+  if((new_pos < left_x) | (new_pos > right_x)){
+    new_pos = sample(left_x:right_x, 1)
+  }
+  
+  return(new_pos)
 }
 
 #function which will return the x position after moving some delta x such that it will be treated as a torus. 
@@ -117,7 +132,7 @@ tcell_df = merge(tcell_df, chemokine_gradient[,c("x_pos","concentration")], by =
 column_names = c("frame", "id", "x_pos","concentration")
 
 
-run_sim <- function(agents){
+run_migration <- function(agents, gradient, iterations, stoch){
   for (i in 1:iterations){
     
     previous_frame <- max(agents$frame)
@@ -151,7 +166,7 @@ run_sim <- function(agents){
         delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right)
 
         
-        new_pos_x = get_new_torus_pos(previous_pos_x, delta_x)
+        new_pos_x = get_new_pos(previous_pos_x, delta_x)
           
         next_agent <- data.frame(
           id = id,

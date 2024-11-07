@@ -70,7 +70,7 @@ calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
 
 #function which returns the next movement in which the cell will move
 get_next_step <- function(left_conc, right_conc, stoch){
-  
+
   
   higher_conc_direction = ifelse(right_conc>left_conc, 
                                  1, 
@@ -119,7 +119,7 @@ get_new_torus_pos <- function(x_pos, delta_x){
 ## Generate test T cell data
 num_tcells = 11
 
-x_positions <- seq(left_x, right_x, length.out = num_tcells)
+x_positions <- round(seq(left_x, right_x, length.out = num_tcells))
 
 tcell_df <- data.frame(
   frame = rep(1, num_tcells),
@@ -127,7 +127,7 @@ tcell_df <- data.frame(
   x_pos = x_positions
 )
 
-tcell_df = merge(tcell_df, chemokine_gradient[,c("x_pos","concentration")], by = "x_pos", all.x = TRUE)
+tcell_df = merge(tcell_df, gradient[,c("x_pos","concentration")], by = "x_pos", all.x = TRUE)
 
 column_names = c("frame", "id", "x_pos","concentration")
 
@@ -156,14 +156,14 @@ run_migration <- function(agents, gradient, iterations, stoch){
         
         # Get concentration to right
         previous_pos_x_right <- get_new_torus_pos(previous_pos_x, step_size)
-        previous_sum_conc_right <- chemokine_gradient$concentration[chemokine_gradient$x_pos == previous_pos_x_right]
+        previous_sum_conc_right <- gradient$concentration[gradient$x_pos == previous_pos_x_right]
         
         # Get concentration to left
         previous_pos_x_left <- get_new_torus_pos(previous_pos_x, -1*step_size)
-        previous_sum_conc_left <- chemokine_gradient$concentration[chemokine_gradient$x_pos == previous_pos_x_left]
+        previous_sum_conc_left <- gradient$concentration[gradient$x_pos == previous_pos_x_left]
         
        
-        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right)
+        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right, stoch)
 
         
         new_pos_x = get_new_pos(previous_pos_x, delta_x)
@@ -172,7 +172,7 @@ run_migration <- function(agents, gradient, iterations, stoch){
           id = id,
           frame = next_frame,
           x_pos = new_pos_x,
-          concentration = chemokine_gradient$concentration[chemokine_gradient$x_pos == new_pos_x]
+          concentration = gradient$concentration[gradient$x_pos == new_pos_x]
         )
         next_frame_agents <- rbind(next_frame_agents, next_agent)
       }
@@ -234,6 +234,22 @@ makeAnimation <- function(agents, concentrations) {
   # Save the animation as a GIF
   animate(p, renderer = av_renderer(), nframes = iterations, fps = 5)
   anim_save("animation.mp4")
+}
+
+plot_distributions <- function(observed, simulated){
+  # Find the final frame for 'df' and subset the data
+  final_frame <- max(simulated$frame)
+  print(final_frame)
+  final_frame_data <- simulated[simulated$frame == final_frame, ]
+  
+  # Plot the density of 'x_pos' for the final frame from 'df'
+  plot(density(final_frame_data$x_pos), main = "Density of x_pos and pos_x for Final Frame", 
+       xlab = "Position", ylab = "Density", col = "blue")
+  
+  # Add the density of 'pos_x' from 'df2' to the plot
+  lines(density(observed$pos_x), col = "red")
+  
+
 }
 
 

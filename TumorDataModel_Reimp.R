@@ -117,22 +117,32 @@ get_new_torus_pos <- function(x_pos, delta_x){
 }
 
 ## Generate test T cell data
-num_tcells = 11
+#'n': number of t cells
+#'gradient': chemokine gradient that the t cells will live in.
+generate_agents <- function(n, gradient){
+  x_positions = sample(left_x:right_x, n, replace = TRUE) #randomly place tcells on tumor
+  
+  agents <- data.frame(
+    id = 1:n,
+    frame = rep(1, n),
+    x_pos = x_positions
+  )
+  
+  agents = merge(agents, gradient[,c("x_pos","concentration")], by = "x_pos", all.x = TRUE)
+  
+}
 
-x_positions <- seq(left_x, right_x, length.out = num_tcells)
-
-tcell_df <- data.frame(
-  frame = rep(1, num_tcells),
-  id = 1:num_tcells,
-  x_pos = x_positions
-)
-
-tcell_df = merge(tcell_df, chemokine_gradient[,c("x_pos","concentration")], by = "x_pos", all.x = TRUE)
-
-column_names = c("frame", "id", "x_pos","concentration")
 
 
-run_migration <- function(agents, gradient, iterations, stoch){
+
+#function which runs the t_cell migration and keeps all x positions and concentrations for every frame.
+run_migration_by_frame <- function(n, gradient, iterations, stoch){
+  
+  agents = generate_agents(n, gradient)
+  
+  column_names = c("frame", "id", "x_pos","concentration")
+  
+  
   for (i in 1:iterations){
     
     previous_frame <- max(agents$frame)
@@ -147,7 +157,7 @@ run_migration <- function(agents, gradient, iterations, stoch){
       next_frame_agents <- data.frame(matrix(ncol = length(column_names), nrow = 0))
       colnames(next_frame_agents) <- column_names
       
-      for (id in 1:num_tcells){
+      for (id in 1:n){
         
         previous_frame_agent <- previous_frame_agents[previous_frame_agents$id == id,]
         
@@ -156,14 +166,14 @@ run_migration <- function(agents, gradient, iterations, stoch){
         
         # Get concentration to right
         previous_pos_x_right <- get_new_torus_pos(previous_pos_x, step_size)
-        previous_sum_conc_right <- chemokine_gradient$concentration[chemokine_gradient$x_pos == previous_pos_x_right]
+        previous_sum_conc_right <- gradient$concentration[gradient$x_pos == previous_pos_x_right]
         
         # Get concentration to left
         previous_pos_x_left <- get_new_torus_pos(previous_pos_x, -1*step_size)
-        previous_sum_conc_left <- chemokine_gradient$concentration[chemokine_gradient$x_pos == previous_pos_x_left]
+        previous_sum_conc_left <- gradient$concentration[gradient$x_pos == previous_pos_x_left]
         
        
-        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right)
+        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right, 1)
 
         
         new_pos_x = get_new_pos(previous_pos_x, delta_x)
@@ -172,7 +182,7 @@ run_migration <- function(agents, gradient, iterations, stoch){
           id = id,
           frame = next_frame,
           x_pos = new_pos_x,
-          concentration = chemokine_gradient$concentration[chemokine_gradient$x_pos == new_pos_x]
+          concentration = gradient$concentration[gradient$x_pos == new_pos_x]
         )
         next_frame_agents <- rbind(next_frame_agents, next_agent)
       }
@@ -189,7 +199,76 @@ run_migration <- function(agents, gradient, iterations, stoch){
 
 
 
+
+
+
 # KL-divergence ----
+
+# Define function to calculate Kullback Leibler Divergence
+calculate_kl <- function(distribution_p, distribution_q){
+  
+  # Ensure equal lengths
+  if(length(distribution_p) != length(distribution_q)){
+    return("Unequal lengths")
+  }
+  
+  # Calculate Kullback Leibler Divergence
+  kullback_leibler <- 0
+  for (i in 1:length(distribution_p)){
+    #print(distribution_p[i])
+    #print(distribution_q[i])
+    if (distribution_p[i] != 0 & distribution_q[i] != 0){
+      new <- distribution_p[i] * log(distribution_p[i] / distribution_q[i])
+      #print(new)
+      kullback_leibler <- kullback_leibler + new
+    }
+  }
+  
+  # Return Kullback Leibler Divergence
+  return(kullback_leibler)
+}
+
+#defines function which takes vectors of x positions and returns kl.
+get_kl <- function(pos_p, pos_q){
+  hist_breaks = seq(min(c(pos_p, pos_q)), max(c(pos_p, pos_q)), by = 1)
+  
+  hist_p = hist(pos_p, breaks= hist_breaks, plot = FALSE)
+  hist_q = hist(pos_q, breaks = hist_breaks, plot = FALSE)
+  
+  dist_p = hist_p$counts / sum(hist_p$counts)
+  dist_q = hist_q$counts / sum(hist_q$counts)
+  
+  kl = calculate_kl(dist_p, dist_q)
+  return(kl)
+}
+
+
+# Function to calculate KL divergence for each frame in agents data frame
+calculate_kl_for_frames <- function(simulated, observed) {
+  
+  
+  frames <- unique(simulated$frame)
+  
+  
+  kl_divergences <- numeric(length(frames))
+  
+  
+  for (i in seq_along(frames)) {
+    frame <- frames[i]
+    
+    # Get x positions of agents in the current frame
+    pos_p <- simulated$x_pos[simulated$frame == frame]
+    
+    
+    kl_divergences[i] <- get_kl(pos_p, observed$pos_x)
+  }
+  
+  
+  kl_data <- data.frame(frame = frames, kl_divergence = kl_divergences)
+  
+  return(kl_data)
+}
+
 
 
 #Visualizing the data ----
@@ -232,9 +311,17 @@ makeAnimation <- function(agents, concentrations) {
     ease_aes('linear')
   
   # Save the animation as a GIF
-  animate(p, renderer = av_renderer(), nframes = iterations, fps = 5)
+  animate(p, renderer = av_renderer(), nframes = 250, fps = 5)
   anim_save("animation.mp4")
 }
 
 
 
+# Driver ---- 
+chem_grad = calculate_chemokine_gradient()
+
+simulated_cells = run_migration_by_frame(n = nrow(CD4_cells), gradient = chem_grad, iterations = 250, stoch = 1)
+
+kl_by_frame = calculate_kl_for_frames(simulated_cells, CD4_cells)
+
+plot(kl_by_frame$frame, kl_by_frame$kl_divergence, type = 'l')

@@ -215,11 +215,10 @@ calculate_kl <- function(distribution_p, distribution_q){
   # Calculate Kullback Leibler Divergence
   kullback_leibler <- 0
   for (i in 1:length(distribution_p)){
-    #print(distribution_p[i])
-    #print(distribution_q[i])
+
     if (distribution_p[i] != 0 & distribution_q[i] != 0){
       new <- distribution_p[i] * log(distribution_p[i] / distribution_q[i])
-      #print(new)
+
       kullback_leibler <- kullback_leibler + new
     }
   }

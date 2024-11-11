@@ -311,7 +311,7 @@ makeAnimation <- function(agents, concentrations) {
     ease_aes('linear')
   
   # Save the animation as a GIF
-  animate(p, renderer = av_renderer(), nframes = 250, fps = 5)
+  animate(p, renderer = av_renderer(), nframes = length(unique(agents$frame)), fps = 5)
   anim_save("animation.mp4")
 }
 

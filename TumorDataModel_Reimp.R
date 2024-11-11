@@ -70,7 +70,7 @@ calculate_chemokine_gradient <- function(k = 0.2, d = 100, y = 2, r = 1){
 
 #function which returns the next movement in which the cell will move
 get_next_step <- function(left_conc, right_conc, stoch){
-  
+
   
   higher_conc_direction = ifelse(right_conc>left_conc, 
                                  1, 
@@ -173,7 +173,7 @@ run_migration_by_frame <- function(n, gradient, iterations, stoch){
         previous_sum_conc_left <- gradient$concentration[gradient$x_pos == previous_pos_x_left]
         
        
-        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right, 1)
+        delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right, stoch)
 
         
         new_pos_x = get_new_pos(previous_pos_x, delta_x)
@@ -313,6 +313,22 @@ makeAnimation <- function(agents, concentrations) {
   # Save the animation as a GIF
   animate(p, renderer = av_renderer(), nframes = 250, fps = 5)
   anim_save("animation.mp4")
+}
+
+plot_distributions <- function(observed, simulated){
+  # Find the final frame for 'df' and subset the data
+  final_frame <- max(simulated$frame)
+  print(final_frame)
+  final_frame_data <- simulated[simulated$frame == final_frame, ]
+  
+  # Plot the density of 'x_pos' for the final frame from 'df'
+  plot(density(final_frame_data$x_pos), main = "Density of x_pos and pos_x for Final Frame", 
+       xlab = "Position", ylab = "Density", col = "blue")
+  
+  # Add the density of 'pos_x' from 'df2' to the plot
+  lines(density(observed$pos_x), col = "red")
+  
+
 }
 
 

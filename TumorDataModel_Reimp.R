@@ -237,13 +237,15 @@ get_kl <- function(pos_p, pos_q){
   dist_p = hist_p$counts / sum(hist_p$counts)
   dist_q = hist_q$counts / sum(hist_q$counts)
   
-  kl = calculate_kl(dist_p, dist_q)
+  x = rbind(dist_p, dist_q)
+  
+  kl = as.numeric(KL(x, unit = "log"))
   return(kl)
 }
 
 
 # Function to calculate KL divergence for each frame in agents data frame
-calculate_kl_for_frames <- function(simulated, observed) {
+calculate_kl_for_frames <- function(observed, simulated) {
   
   
   frames <- unique(simulated$frame)
@@ -337,6 +339,8 @@ chem_grad = calculate_chemokine_gradient()
 
 simulated_cells = run_migration_by_frame(n = nrow(CD4_cells), gradient = chem_grad, iterations = 250, stoch = 1)
 
-kl_by_frame = calculate_kl_for_frames(simulated_cells, CD4_cells)
+kl_by_frame = calculate_kl_for_frames(CD4_cells, simulated_cells)
 
 plot(kl_by_frame$frame, kl_by_frame$kl_divergence, type = 'l')
+
+

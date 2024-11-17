@@ -204,29 +204,9 @@ run_migration_by_frame <- function(n, gradient, iterations, stoch){
 
 # KL-divergence ----
 
-# Define function to calculate Kullback Leibler Divergence
-calculate_kl <- function(distribution_p, distribution_q){
-  
-  # Ensure equal lengths
-  if(length(distribution_p) != length(distribution_q)){
-    return("Unequal lengths")
-  }
-  
-  # Calculate Kullback Leibler Divergence
-  kullback_leibler <- 0
-  for (i in 1:length(distribution_p)){
 
-    if (distribution_p[i] != 0 & distribution_q[i] != 0){
-      new <- distribution_p[i] * log(distribution_p[i] / distribution_q[i])
 
-      kullback_leibler <- kullback_leibler + new
-    }
-  }
-  
-  # Return Kullback Leibler Divergence
-  return(kullback_leibler)
-}
-
+library(philentropy) #library which has KL calculation
 #defines function which takes vectors of x positions and returns kl.
 get_kl <- function(pos_p, pos_q){
   hist_breaks = seq(min(c(pos_p, pos_q)), max(c(pos_p, pos_q)), by = 1)
@@ -258,10 +238,10 @@ calculate_kl_for_frames <- function(observed, simulated) {
     frame <- frames[i]
     
     # Get x positions of agents in the current frame
-    pos_p <- simulated$x_pos[simulated$frame == frame]
+    pos_q <- simulated$x_pos[simulated$frame == frame]
     
     
-    kl_divergences[i] <- get_kl(pos_p, observed$pos_x)
+    kl_divergences[i] <- get_kl(observed$pos_x, pos_q)
   }
   
   

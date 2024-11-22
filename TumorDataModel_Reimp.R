@@ -315,12 +315,56 @@ plot_distributions <- function(observed, simulated){
 
 
 # Driver ---- 
-chem_grad = calculate_chemokine_gradient()
+k_values = c(0.1, 0.2, 0.5)
+d_values = c(50, 100, 150)
+m_values = c(1, 2, 3)
+stoch_values = c(0.5, 1, 1.5)
 
-simulated_cells = run_migration_by_frame(n = nrow(CD4_cells), gradient = chem_grad, iterations = 250, stoch = 1)
+kl_results = list()
 
-kl_by_frame = calculate_kl_for_frames(CD4_cells, simulated_cells)
+for (k in k_values) {
+  for (d in d_values) {
+    for (m in m_values) {
+      for (stoch in stoch_values) {
+        
+        cat("Running simulation for k=", k, ", d=", d, ", m=", m, ", stoch=", stoch, "\n")
+        chem_grad = calculate_chemokine_gradient(k = k, d = d, y = m, r = 1)
+        simulated_cells = run_migration_by_frame(n = nrow(CD4_cells), gradient = chem_grad, iterations = 250, stoch = stoch)
+        kl_by_frame = calculate_kl_for_frames(CD4_cells, simulated_cells)
+        
+        # Store KL results
+        kl_results[[paste("k", k, "d", d, "m", m, "stoch", stoch, sep = "_")]] = data.frame(
+          k = k,
+          d = d,
+          m = m,
+          stoch = stoch,
+          frame = kl_by_frame$frame,
+          kl_divergence = kl_by_frame$kl_divergence
+        )
+      }
+    }
+  }
+}
 
-plot(kl_by_frame$frame, kl_by_frame$kl_divergence, type = 'l')
+# Convert kl_results list into a dataframe
+kl_results_df <- do.call(rbind, kl_results)
+
+# View the combined dataframe
+print(kl_results_df)
+
+library(reshape2)
+
+# Summarize KL divergence across all frames
+kl_summary <- aggregate(kl_divergence ~ k + d + m + stoch, kl_results_df, mean)
+
+ggplot(kl_summary, aes(x = factor(m), y = factor(stoch), fill = kl_divergence)) +
+  geom_tile() +
+  geom_text(aes(label = round(kl_divergence, 2)), color = "white", size = 3) +
+  labs(title = "Average KL Divergence for Different Parameter Combinations",
+       x = "k",
+       y = "d",
+       fill = "Avg KL Divergence") +
+  theme_minimal()
+
 
 

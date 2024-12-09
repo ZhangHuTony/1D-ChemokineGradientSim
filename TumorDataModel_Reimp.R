@@ -484,19 +484,39 @@ cat("m:", optimized_params$m, "\n")
 cat("stoch:", optimized_params$stoch, "\n")
 
 
-print( "Optimized Average KL Divergence: ",
+print(
   calculate_migration_and_kl(
   k = optimized_params$k,
   d = optimized_params$d,
   m = optimized_params$m,
   stoch = optimized_params$stoch,
   observed_positions = CD4_cells,
-  num_runs = 50
+  num_runs = 1000
   )
 )
 
 
 
+total_kl = 0
+for(i in 1:1000){
+  total_kl = total_kl + get_kl(CD4_cells$pos_x,sample(left_x:right_x, 36, replace = TRUE) )
+}
 
+print(total_kl/1000)
 
+# Rename 'pos_x' to 'x_pos' to facilitate merging
+CD4_cells <- CD4_cells %>%
+  rename(x_pos = pos_x)
+
+# Merge df2 with df1 to get the corresponding concentration values for df2 x_pos
+df2 <- merge(CD4_cells, grad, by = "x_pos")
+
+# Create the line plot with points
+ggplot() +
+  geom_line(data = grad, aes(x = x_pos, y = concentration), color = 'black', size = 0.5) +  # Line from df1
+  geom_point(data = df2, aes(x = x_pos, y = concentration), color = 'blue', size = 2) +  # Points from df2 on the line
+  labs(title = "Concentration vs X Position with Points from Second DataFrame",
+       x = "X Position",
+       y = "Concentration") +
+  theme_minimal()  # Clean minimal theme
 

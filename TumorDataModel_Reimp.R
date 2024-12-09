@@ -196,8 +196,69 @@ run_migration_by_frame <- function(n, gradient, iterations, stoch){
   
 }
 
+# Function: run_migration_by_frame
+# Purpose: Simulates the movement of agents over multiple frames based on a chemokine gradient
+# Inputs:
+#   - n: Number of agents
+#   - gradient: Data representing the chemokine gradient
+#   - iterations: Number of frames to simulate
+#   - stoch: Level of stochasticity in agent movement
+# Output: Returns the x positions of all agents after the final frame
 
-
+run_migration <- function(n, gradient, iterations, stoch){
+  
+  # Generate initial agents with their properties and associate with the gradient
+  agents <- generate_agents(n, gradient)
+  agents$frame <- 1
+  
+  # Define the column names for consistency
+  column_names = c("frame", "id", "x_pos","concentration")
+  
+  # Iterate through the specified number of iterations
+  for (i in 2:iterations){
+    
+    # Get the agents from the previous frame
+    previous_frame_agents <- agents
+    # Calculate the next frame number
+    next_frame <- max(previous_frame_agents$frame) + 1
+    
+    # Update each agent's position and concentration based on gradient and stochasticity
+    for (id in 1:n){
+      
+      # Retrieve the agent's data from the previous frame
+      previous_frame_agent <- previous_frame_agents[previous_frame_agents$id == id,]
+      
+      # Get the agent's current position
+      previous_pos_x <- previous_frame_agent$x_pos
+      
+      
+      # Get concentration to the right of the current position
+      previous_pos_x_right <- get_new_torus_pos(previous_pos_x, step_size)
+      previous_sum_conc_right <- gradient$concentration[gradient$x_pos == previous_pos_x_right]
+      
+      # Get concentration to the left of the current position
+      previous_pos_x_left <- get_new_torus_pos(previous_pos_x, -1*step_size)
+      previous_sum_conc_left <- gradient$concentration[gradient$x_pos == previous_pos_x_left]
+      
+      # Calculate the change in position based on gradient and stochasticity
+      delta_x <- get_next_step(previous_sum_conc_left, previous_sum_conc_right, stoch)
+      
+      # Update the agent's position
+      new_pos_x <- get_new_pos(previous_pos_x, delta_x)
+      
+      # Update the agent's data in the current frame
+      previous_frame_agents[previous_frame_agents$id == id, "x_pos"] <- new_pos_x
+      previous_frame_agents[previous_frame_agents$id == id, "concentration"] <- gradient$concentration[gradient$x_pos == new_pos_x]
+      previous_frame_agents[previous_frame_agents$id == id, "frame"] <- next_frame
+    }
+    
+    # Replace the agents with updated positions for the next iteration
+    agents <- previous_frame_agents
+  }
+  
+  # Return only the x positions of all agents
+  return(agents$x_pos)
+}
 
 
 
@@ -315,56 +376,127 @@ plot_distributions <- function(observed, simulated){
 
 
 # Driver ---- 
-k_values = c(0.1, 0.2, 0.5)
-d_values = c(50, 100, 150)
-m_values = c(1, 2, 3)
-stoch_values = c(0.5, 1, 1.5)
 
-kl_results = list()
+# Function: calculate_migration_and_kl
+# Purpose: Combines chemokine gradient calculation, agent migration simulation, and KL divergence calculation
+# Inputs:
+#   - k: Chemokine decay constant
+#   - d: Chemokine diffusion constant
+#   - m: Heat (intensity) of the cancer cell
+#   - stoch: Level of stochasticity in agent movement
+#   - observed_positions: X positions of the observed data (can be a vector or a single-column data frame)
+#   - iterations: Number of frames to simulate (default = 100)
+#   - num_runs: Number of times to repeat the migration simulation (default = 10)
+# Output: Returns the average KL divergence between the simulated and observed distributions
 
-for (k in k_values) {
-  for (d in d_values) {
-    for (m in m_values) {
-      for (stoch in stoch_values) {
-        
-        cat("Running simulation for k=", k, ", d=", d, ", m=", m, ", stoch=", stoch, "\n")
-        chem_grad = calculate_chemokine_gradient(k = k, d = d, y = m, r = 1)
-        simulated_cells = run_migration_by_frame(n = nrow(CD4_cells), gradient = chem_grad, iterations = 250, stoch = stoch)
-        kl_by_frame = calculate_kl_for_frames(CD4_cells, simulated_cells)
-        
-        # Store KL results
-        kl_results[[paste("k", k, "d", d, "m", m, "stoch", stoch, sep = "_")]] = data.frame(
-          k = k,
-          d = d,
-          m = m,
-          stoch = stoch,
-          frame = kl_by_frame$frame,
-          kl_divergence = kl_by_frame$kl_divergence
-        )
-      }
-    }
+calculate_migration_and_kl <- function(k, d, m, stoch, observed_positions, iterations = 50, num_runs = 10) {
+  
+  # If observed_positions is a data frame, extract the first column as a vector
+  if (is.data.frame(observed_positions)) {
+    observed_positions <- observed_positions[[1]]
   }
+  
+  # Derive the number of agents from the input positions
+  n <- length(observed_positions)
+  
+  
+  # Step 1: Calculate the chemokine gradient
+  gradient <- calculate_chemokine_gradient(k, d, m)
+  
+  # Initialize a variable to store the total KL divergence
+  total_kl_divergence <- 0
+  
+  # Step 2: Run the migration simulation multiple times
+  for (i in 1:num_runs) {
+    # Simulate the migration of agents
+    simulated_positions <- run_migration(n, gradient, iterations, stoch)
+    
+    # Calculate the KL divergence for this run
+    kl_divergence <- get_kl(observed_positions, simulated_positions)
+    
+    # Accumulate the KL divergence
+    total_kl_divergence <- total_kl_divergence + kl_divergence
+  }
+  
+  # Calculate the average KL divergence
+  average_kl_divergence <- total_kl_divergence / num_runs
+  
+  return(average_kl_divergence)
 }
 
-# Convert kl_results list into a dataframe
-kl_results_df <- do.call(rbind, kl_results)
 
-# View the combined dataframe
-print(kl_results_df)
+# Function: optimize_parameters
+# Purpose: Optimize k, d, m, and stoch to minimize KL divergence
+# Inputs:
+#   - input_positions: X positions of the observed data (can be a vector or a single-column data frame)
+#   - iterations: Number of frames to simulate (default = 50)
+#   - num_runs: Number of times to repeat the migration simulation (default = 10)
+#   - bounds: A list specifying bounds for k, d, m, and stoch
+# Output: Returns the optimized values of k, d, m, and stoch
 
-library(reshape2)
+optimize_parameters <- function(input_positions, iterations = 50, num_runs = 10, bounds) {
+  
+  # Objective function for optimization
+  objective_function <- function(params) {
+    k <- params[1]
+    d <- params[2]
+    m <- params[3]
+    stoch <- params[4]
+    
+    calculate_migration_and_kl(k, d, m, stoch, input_positions, iterations, num_runs)
+  }
+  
+  # Set up optimization using L-BFGS-B method with bounds
+  result <- optim(
+    par = c(mean(bounds$k), mean(bounds$d), mean(bounds$m), mean(bounds$stoch)),
+    fn = objective_function,
+    method = "L-BFGS-B",
+    lower = c(bounds$k[1], bounds$d[1], bounds$m[1], bounds$stoch[1]),
+    upper = c(bounds$k[2], bounds$d[2], bounds$m[2], bounds$stoch[2])
+  )
+  
+  # Return optimized parameters
+  return(list(k = result$par[1], d = result$par[2], m = result$par[3], stoch = result$par[4]))
+}
 
-# Summarize KL divergence across all frames
-kl_summary <- aggregate(kl_divergence ~ k + d + m + stoch, kl_results_df, mean)
 
-ggplot(kl_summary, aes(x = factor(m), y = factor(stoch), fill = kl_divergence)) +
-  geom_tile() +
-  geom_text(aes(label = round(kl_divergence, 2)), color = "white", size = 3) +
-  labs(title = "Average KL Divergence for Different Parameter Combinations",
-       x = "k",
-       y = "d",
-       fill = "Avg KL Divergence") +
-  theme_minimal()
+# Define bounds for parameters (adjust these based on your context)
+bounds <- list(
+  k = c(0.01, 1.0),      # Bounds for chemokine decay constant
+  d = c(50, 150),      # Bounds for chemokine diffusion constant
+  m = c(1.0, 10.0),      # Bounds for cancer cell heat
+  stoch = c(0.0, 2.0)    # Bounds for stochasticity
+)
+
+# Optimize the parameters
+optimized_params <- optimize_parameters(
+  input_positions = CD4_cells,
+  iterations = 50,
+  num_runs = 10,
+  bounds = bounds
+)
+
+# Print the optimized parameters
+cat("Optimized Parameters:\n")
+cat("k:", optimized_params$k, "\n")
+cat("d:", optimized_params$d, "\n")
+cat("m:", optimized_params$m, "\n")
+cat("stoch:", optimized_params$stoch, "\n")
+
+
+print( "Optimized Average KL Divergence: ",
+  calculate_migration_and_kl(
+  k = optimized_params$k,
+  d = optimized_params$d,
+  m = optimized_params$m,
+  stoch = optimized_params$stoch,
+  observed_positions = CD4_cells,
+  num_runs = 50
+  )
+)
+
+
+
 
 
 

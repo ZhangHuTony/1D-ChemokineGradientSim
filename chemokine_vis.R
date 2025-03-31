@@ -19,8 +19,8 @@ cancer_df <- rbind(yfp, rfp)
 cancer_positions <- cancer_df$x
 
 # ========== 2) Set Parameters ==========
-D <- 10     # Diffusion-related parameter
-delta <- 1  # Decay-related parameter
+D <- 3.6     # Diffusion-related parameter
+delta <- 0.6  # Decay-related parameter
 
 # ========== 3) Define x-range ==========
 b_min <- min(cancer_positions)

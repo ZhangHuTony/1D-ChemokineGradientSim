@@ -17,8 +17,8 @@ cancer_x <- c(yfp$x, rfp$x)
 cancer_M <- c(rep(1, nrow(yfp)), rep(4, nrow(rfp)))
 
 # Gradient-specific parameters
-D <- 100         # Diffusion coefficient
-delta <- 0.1     # Decay rate
+D <- 128.0       # Diffusion coefficient
+delta <- 0.00542     # Decay rate
 
 # Determine the domain from all positions (cancer cells and T-cells)
 all_positions <- c(yfp$x, rfp$x, cd4$x)
@@ -59,11 +59,12 @@ if(file.exists(grad_filename)){
 
 # Simulation-specific parameters (only pertaining to the T-cell movement)
 num_tcells <- nrow(cd4)  # number of T-cells from the CD4 dataset
-alpha <- 0.01           # sensitivity parameter for T-cell movement
+alpha <- -10         # sensitivity parameter for T-cell movement
+speed <- 2
 always_update <- FALSE   # flag to always update the T-cell velocity
-num_steps <- 500        # number of simulation steps
+num_steps <-  1000000       # number of simulation steps
 
-set.seed(123)  # For reproducibility
+set.seed(1)  # For reproducibility
 sim_time <- system.time({
   sim_results <- run_simulation(
     num_tcells = num_tcells,
@@ -74,6 +75,7 @@ sim_time <- system.time({
     D = D,
     delta = delta,
     alpha = alpha,
+    speed = speed,
     num_steps = num_steps,
     always_update = always_update,
     gradient_table = grad_table,
@@ -95,6 +97,7 @@ ggplot(combined_data, aes(x = x, fill = type)) +
   xlab("Position") + ylab("Density") +
   theme_minimal()
 
+print(summary(sim_results$sinuosities))
 
   
 

@@ -1,51 +1,54 @@
-# 1D Chemokine Gradient Simulation in Heterogeneous Tumors
-
-This repository contains the R code and data files for simulating a 1D chemokine gradient in heterogeneous tumors, aiming to replicate the observed T-cell distribution within tumors. This simulation is based on the research presented in ["Tumor cell heterogeneity drives spatial organization of the intratumoral immune response in squamous cell skin carcinoma"](https://pmc.ncbi.nlm.nih.gov/articles/PMC10168251/).
-
-## Repository Structure
-
-### 1. **R Scripts**
-- **`TumorDataModel.R`**: The primary R script containing the simulation code. This script models the chemokine gradient, compares, and optimizes the model to the observed data.
 
 
-### 2. **Data Folder**
-- **`Data/`**: Contains datasets of the positions of tumor cells and their classified cell type as well as images of the tumor cross sections. These datasets are used to validate the simulation model.
-- **`Data/DataTransformation.R`**: A utility script for transforming raw tumor data into the required format for `TumorDataModel.R`.
+# 1D and 1D\_Part2 Chemokine Gradient Simulation
 
-### 3. **Project Summary**
-- **`ProjectSummary.pdf`**: A crude summary of the project, detailing the objectives, methods, results, and conclusions.
+This repository contains two subprojects focused on simulating T-cell behavior in response to chemokine gradients in heterogeneous tumor environments.
 
-## Dependencies
+## Project Motivation
 
+Understanding the spatial organization of T-cells in tumors provides insights into immunotherapy response. These simulations are part of a broader effort to computationally model immune-tumor interactions.
 
-- **R**: Ensure you have R installed on your system.
-- **Required Packages**: The following R packages are needed for the simulation installable via `install.packages()`:
-  - `ggplot2`
-  - `philentropy`
-  - `gganimate`
-  - `av`
+## Folders
+
+* `1D/`: The original R-based simulation of chemokine gradients and T-cell positioning.
+* `1D_Part2/`: A second-generation implementation using C++ for faster computation, gradient precomputation, and derivative-based updates.
+
+## New in 1D\_Part2
+
+`1D_Part2/` addresses performance and scalability limitations from the original implementation. Major improvements include:
+
+* **C++ Core**: Rewritten simulation logic in C++ for significantly faster runtimes.
+* **Precomputed Gradient**: The chemokine field gradient is calculated once and stored to avoid redundant calculations.
+* **Derivative-Based T-cell Movement**: T-cell movement is now influenced by spatial chemokine derivatives instead of discrete sampling.
 
 
 
+## Usage Instructions
 
-## Results
-- The simulation aims to replicate the observed T-cell distributions within heterogeneous tumors. Outputs include plots and metrics to compare the simulated and actual distributions using the KL divergence.
+Follow the individual README files in each subdirectory for detailed setup and usage information. In short:
+
+1. Navigate to either `1D/` or `1D_Part2/`
+2. Run the simulation using R or compile with `make` for the C++ version
+3. Analyze results and compare T-cell distributions
+
+## Summary
+
+This project aims to simulate a chemokine gradient within heterogeneous tumors to better understand and replicate the spatial distribution of T-cells. The `1D` implementation uses R to model chemokine diffusion and compare simulated distributions against real tumor data using KL divergence as a metric. The follow-up implementation in `1D_Part2` enhances performance by leveraging C++ and introduces gradient precomputation and derivative-based cell movement.
+
+
 
 ## Acknowledgments
-Special thanks to the following contributors:
-- **Professor Fred Adler**: For guidance and support throughout this project.
-- **Graduate Student Montana Ferita**: For assistance in developing the R code and analytical methods.
-- **Dr. Melissa Reeves and Robert Letchworth**: For providing the tumor data used in this study.
-- **Noah Moffat**: For laying the groundwork.
-- **Undergraduate Research Opportunity Program (UROP), University of Utah**: For funding this project. Learn more about UROP [here](https://our.utah.edu/research-scholarship-opportunities/urop/).
 
+* Prof. Fred Adler
+* Montana Ferita
+* Dr. Melissa Reeves & Robert Letchworth
+* Noah Moffat
+* UROP, University of Utah ([link](https://our.utah.edu/research-scholarship-opportunities/urop/))
 
+## References
 
-## Citation
-> Tanaka, Miho et al. “Tumor cell heterogeneity drives spatial organization of the intratumoral immune response in squamous cell skin carcinoma.” bioRxiv : the preprint server for biology 2023.04.25.538140. 21 Jun. 2023, doi:10.1101/2023.04.25.538140. Preprint.
+> Tanaka, Miho et al. "Tumor cell heterogeneity drives spatial organization of the intratumoral immune response in squamous cell skin carcinoma." *bioRxiv*, doi:10.1101/2023.04.25.538140.
 
-If you use this code please give credit by citing this repository. If you use the data please give credit to the [Reeve's Lab](https://www.reeveslab.com/).
+## Contact
 
----
-For any questions or suggestions, please contact Tony Zhang at zhanghutony@gmail.com.
-
+For issues or questions, contact Tony Zhang at [zhanghutony@gmail.com](mailto:zhanghutony@gmail.com)
